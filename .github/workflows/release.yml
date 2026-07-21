@@ -26,23 +26,20 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-          cache: gradle
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+          cache: maven
 
       - name: Verify quality gates and build artifact
-        run: gradle clean build shadowJar
+        run: mvn -B clean verify package
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: metro-jar
-          path: build/libs/metro-*.jar
+          path: target/metro-*.jar
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           name: ${{ github.event.inputs.release_name || github.ref_name }}
-          files: build/libs/metro-*.jar
+          files: target/metro-*.jar
