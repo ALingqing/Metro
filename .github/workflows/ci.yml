@@ -18,14 +18,17 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-          cache: maven
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Verify quality gates and build artifact
-        run: mvn -B clean verify package
+        run: gradle clean build shadowJar
 
       - name: Upload metro jar
         uses: actions/upload-artifact@v4
         with:
           name: metro-jar
-          path: target/metro-*.jar
+          path: build/libs/metro-*.jar
 
