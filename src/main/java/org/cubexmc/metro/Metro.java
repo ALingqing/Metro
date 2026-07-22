@@ -123,7 +123,7 @@ public final class Metro extends CubexPlugin {
             getLogger().info("Vault economy not found or disabled.");
         }
         this.ticketService = new org.cubexmc.metro.service.TicketService(this::getVaultIntegration,
-                () -> configFacade.isEconomyEnabled());
+                () -> getConfig().getBoolean("economy.enabled", true));
 
         this.priceService = new org.cubexmc.metro.service.PriceService();
         this.lineStatusService = new org.cubexmc.metro.service.LineStatusService(this, lineManager);
