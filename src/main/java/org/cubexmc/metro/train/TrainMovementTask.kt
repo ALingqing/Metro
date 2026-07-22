@@ -232,7 +232,7 @@ class TrainMovementTask @JvmOverloads constructor(
             return
         }
 
-        val variablePrice = when (rule.getMode()) {
+        val rawVariablePrice = when (rule.getMode()) {
             PriceRule.PricingMode.DISTANCE -> distance * rule.getPerBlockRate()
             PriceRule.PricingMode.INTERVAL -> {
                 val intervals = session.plugin.priceService.countStopIntervals(line, session.entryStopId, stop.id)
@@ -242,16 +242,39 @@ class TrainMovementTask @JvmOverloads constructor(
             else -> return
         }
 
-        if (variablePrice > 0) {
-            val status = session.plugin.ticketService.chargePrice(passenger, line, variablePrice)
+        // 应用 maxPrice 上限：整个行程的总费用不得超过 maxPrice
+        val variablePrice = if (rawVariablePrice > 0) {
+            val maxPrice = rule.getMaxPrice()
+            if (maxPrice > 0.0) {
+                val remaining = maxPrice - rule.getBasePrice() - session.totalVariableCharged
+                if (remaining <= 0) 0.0 else minOf(rawVariablePrice, remaining)
+            } else {
+                rawVariablePrice
+            }
+        } else {
+            0.0
+        }
+
+        // 应用时间折扣
+        val gameTime = passenger.world?.time ?: 6000L
+        val discount = rule.getActiveDiscountMultiplier(gameTime)
+        val finalPrice = if (variablePrice > 0 && discount < 1.0) {
+            variablePrice * discount
+        } else {
+            variablePrice
+        }
+
+        if (finalPrice > 0) {
+            val status = session.plugin.ticketService.chargePrice(passenger, line, finalPrice)
             if (status == TicketService.TicketChargeStatus.CHARGED) {
+                session.totalVariableCharged += variablePrice // 按上限前价格记录，确保 maxPrice 正确生效
                 passenger.sendMessage(
                     session.plugin.languageManager.getMessage(
                         "economy.paid_distance",
                         LanguageManager.put(
                             LanguageManager.args(),
                             "price",
-                            session.plugin.ticketService.format(variablePrice),
+                            session.plugin.ticketService.format(finalPrice),
                         ),
                     ),
                 )
