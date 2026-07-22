@@ -199,6 +199,9 @@ class TrainMovementTask @JvmOverloads constructor(
         movementAssistController.stop()
         session.plugin.bedrockCompatibility.onTrainArrival(session.passenger, minecart)
 
+        // 先结算里程费用，确保即使 stopPointLocation 为 null 也能正常扣费
+        settleDistanceFare(stop)
+
         val baseLocation = stop.stopPointLocation ?: return
         val snapLocation = baseLocation.clone()
         snapLocation.x = snapLocation.blockX + 0.5
@@ -207,8 +210,6 @@ class TrainMovementTask @JvmOverloads constructor(
         if (line != null) {
             session.plugin.routeRecorder.sample(line.id, minecart, snapLocation)
         }
-
-        settleDistanceFare(stop)
 
         val previousState = stateMachine.transitionTo(TrainState.STOPPED_AT_STATION, null)
         if (previousState == TrainState.MOVING_IN_STATION) {
@@ -258,6 +259,9 @@ class TrainMovementTask @JvmOverloads constructor(
         }
 
         session.addDistance(-distance)
+
+        // 更新 entryStopId 为当前站，确保 INTERVAL 模式下下一段区间从当前站开始计算
+        session.entryStopId = stop.id
     }
 
     private fun transitionToMovingInStation(targetStop: Stop) {
